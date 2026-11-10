@@ -61,7 +61,8 @@ What it does:
 ## Quick overview of setup
 
 1. **Copy this project:** click **Use this template** at the top of this page.
-2. **Open your copy in [Claude Code](https://claude.ai/code)** and let it walk you through the rest.
+2. **Open your copy in [Claude Code](https://claude.ai/code)** and let it walk you through the rest. Give
+   it your website address so it can match your name, logo and colors.
 3. **Put in your name and logo** ([CUSTOMIZE.md](CUSTOMIZE.md)).
 4. **Create your own signing key** and keep it and its password safe. Every update needs it.
 5. **Set up Square, Google and the free Cloudflare sign-in helper** ([SETUP.md](SETUP.md)).
@@ -78,7 +79,8 @@ Plan on an afternoon the first time. After that it mostly runs itself; a quick m
 
 > **Not a programmer?** Neither are most of us. Open this repository in
 > [Claude Code](https://claude.ai/code) and say: *"Help me set up this donation kiosk for my
-> organization, one step at a time. Start with CUSTOMIZE.md."*
+> organization, one step at a time. Our website is ___ — use it for our name, logo and colors. Start
+> with CUSTOMIZE.md."*
 
 ## Using a different reader
 
