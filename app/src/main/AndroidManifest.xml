@@ -1,0 +1,28 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO" android:maxSdkVersion="29"/>
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false"/>
+    <application android:name=".KollelApplication" android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules" android:icon="@drawable/ic_kollel" android:usesCleartextTraffic="false" android:label="Kollel Giving Kiosk" android:supportsRtl="true" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <receiver android:name=".KioskAdminReceiver" android:exported="true" android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data android:name="android.app.device_admin" android:resource="@xml/kiosk_device_admin"/>
+            <intent-filter><action android:name="android.app.action.DEVICE_ADMIN_ENABLED"/></intent-filter>
+        </receiver>
+        <receiver android:name=".KioskBootReceiver" android:exported="false">
+            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED"/></intent-filter>
+        </receiver>
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask" android:lockTaskMode="if_whitelisted">
+            <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="kollelgiving" android:host="square"/></intent-filter>
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.HOME"/><category android:name="android.intent.category.DEFAULT"/></intent-filter>
+        </activity>
+    </application>
+</manifest>

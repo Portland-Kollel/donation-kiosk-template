@@ -1,0 +1,28 @@
+{
+  "name": "kollel-square-callback",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-07-30",
+  "workers_dev": true,
+  "vars": {
+    "PUBLIC_ORIGIN": "https://YOUR-WORKER.YOUR-SUBDOMAIN.workers.dev"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "FLOWS",
+        "class_name": "AuthorizationSessions"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "AuthorizationSessions"
+      ]
+    }
+  ],
+  "observability": {
+    "enabled": false
+  }
+}

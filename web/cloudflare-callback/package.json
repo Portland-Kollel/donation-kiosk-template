@@ -1,0 +1,7 @@
+{
+  "name": "kollel-square-callback",
+  "private": true,
+  "type": "module",
+  "scripts": {"test": "node --test worker.test.mjs", "check": "wrangler deploy --dry-run --outdir /tmp/kollel-worker-check"},
+  "devDependencies": {"miniflare": "4.20260730.0", "wrangler": "4.158.0"}
+}
