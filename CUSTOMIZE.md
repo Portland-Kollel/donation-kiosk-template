@@ -5,7 +5,8 @@ before you build your own copy.
 
 > **Easiest way:** open this repository in [Claude Code](https://claude.ai/code) and paste:
 >
-> *"Customize this donation kiosk for my organization. Our name is ___, our short name is ___ (used in
+> *"Customize this donation kiosk for my organization. Our website is ___ — look at it for our name,
+> logo, colors and wording. Our name is ___, our short name is ___ (used in
 > 'so ___ receives the full $54'), our donation categories are ___, and our logo is the file I'm adding.
 > Follow CUSTOMIZE.md, change every item on its checklist, then run the checks."*
 

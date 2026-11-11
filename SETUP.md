@@ -23,8 +23,8 @@ Follow these in order. Each part is short. Plan on an afternoon the first time.
 ## 1. Make your own copy
 
 1. Sign in to GitHub (free account).
-2. On this repository's page, click **Fork** and create the fork under your account or organization.
-   You can make it private afterwards in *Settings → General → Danger Zone → Change visibility*.
+2. On this repository's page, click **Use this template → Create a new repository**. Choose your
+   account or organization, give it a name, and pick **Private** (recommended).
 3. In your copy: **Actions** tab → click **"I understand my workflows, go ahead and enable them."**
 
 ## 2. Customize it
@@ -183,7 +183,8 @@ Under **Square and Google settings**, enter:
 1. Add your Google account back to the tablet (*Settings → Passwords & accounts*).
 2. Staff menu → switch to **Production** → **Sign in to Square** → approve → tap the button to return
    to the kiosk.
-3. **Grant reader permissions** → **Reader setup and pairing** → pair your Square Reader.
+3. **Grant reader permissions** → **Reader setup and pairing** → hold the reader's button until its
+   lights flash to pair your Square Reader (2nd generation).
 4. **Organization Google account** → choose the account → **Authorize organization Google account**.
    Tick **both** permission boxes.
 5. **Close staff menu**. Restart the tablet to confirm it comes straight back to the locked kiosk.
@@ -215,8 +216,8 @@ Funds).
 
 When a new version comes out here:
 
-1. In your GitHub copy, click **Sync fork → Update branch**. If you made your own changes, Claude Code
-   can help merge.
+1. Open your copy in Claude Code and say: *"Bring in the latest changes from
+   github.com/Portland-Kollel/donation-kiosk-template, keeping my customizations."*
 2. Create a new `live-release/v…` branch with the new version number from `app/build.gradle.kts` (step 4).
    If you change the app yourself, raise `versionCode` and `versionName` there first: each version can
    only be released once.
