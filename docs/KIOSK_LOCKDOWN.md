@@ -10,7 +10,7 @@
 - **Self-locking kiosk (kiosk manager / device owner):** on every start the app pins itself with no prompt and no
   escape gesture, stays the home screen, opens after a restart, and keeps the screen on while plugged in.
   **Regular mode:** Staff → Staff exit unpins the kiosk and gives back the normal home screen and apps. Return to
-  kiosk mode by restarting the tablet or Staff → Pin kiosk screen. Staff → Remove kiosk lock-down removes kiosk
+  kiosk mode by restarting the tablet or Staff → Lock kiosk screen. Staff → Remove kiosk lock-down removes kiosk
   manager permanently (re-enabling needs the ADB command again).
 
 ## One-time kiosk-manager setup (owner)

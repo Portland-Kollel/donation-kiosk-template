@@ -45,7 +45,8 @@ class MainActivity:ComponentActivity(),DefaultLifecycleObserver {
     private var env by mutableStateOf("sandbox");private var appId by mutableStateOf("");private var location by mutableStateOf("")
     private var googleAccount by mutableStateOf("");private var notifyEmails by mutableStateOf("")
     private var feePercent by mutableStateOf("2.6");private var feeCents by mutableStateOf("15");private var depositTo by mutableStateOf("Undeposited Funds")
-    private var callbackOrigin by mutableStateOf("")
+    private var callbackOrigin by mutableStateOf("");private var weeklyStatus by mutableStateOf(true)
+    private var staffStatus by mutableStateOf<List<StaffCheck>>(emptyList());private var selfTestResults by mutableStateOf<List<StaffCheck>?>(null);private var testing by mutableStateOf(false)
     private var confirmRemoveLockdown by mutableStateOf(false);private var changingPin by mutableStateOf(false);private var oldPin by mutableStateOf("");private var newPin by mutableStateOf("");private var newConfirm by mutableStateOf("")
     private val permissions=registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         state.message=if(it.values.all {v->v})"Permissions ready. Authorize Square next." else "Check reader permissions in Android settings."
@@ -111,27 +112,14 @@ class MainActivity:ComponentActivity(),DefaultLifecycleObserver {
                 }
                 OutlinedTextField(callbackOrigin,{callbackOrigin=it.trim()},label={Text("Cloudflare Worker HTTPS origin")},singleLine=true)
                 Text("Callback: $callbackOrigin/$env/square/callback")
+                Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+                    Checkbox(weeklyStatus,{weeklyStatus=it})
+                    Text("Weekly status email to the gift-notice addresses (Mondays after 9 am)")
+                }
             }},confirmButton={TextButton(onClick=::saveSettings){Text("Save")}},dismissButton={TextButton(onClick={settings=false}){Text("Cancel")}})
             GivingScreen(state.amount,{state.amount=it},state.busy,state.locked,state.authorized,state.message,state.verified,::pay,::recover,state,::finishDonation,onStaffRequest={if(!state.staffUnlocked){error="";showPin=true}}) {
-                if(state.staffUnlocked) {
-                    Button(onClick={state.staffUnlocked=false;settings=false}){Text("Close staff menu")}
-                    Button(onClick=::editSettings,enabled=!state.busy){Text("Square and Google settings")}
-                    Button(onClick=::grantPermissions){Text("Grant reader permissions")}
-                    Button(onClick=::connect,enabled=!state.busy){Text("Authorize / reconnect Square")}
-                    Button(onClick=::signIn,enabled=!state.busy){Text("Sign in to Square")}
-                    Button(onClick={safe {kiosk.square.readerSettings {state.message=it}}},enabled=state.authorized&&!state.busy){Text("Reader setup and pairing")}
-                    Button(onClick={safe {kiosk.square.reconnect()}},enabled=state.authorized&&!state.busy){Text("Reconnect reader")}
-                    state.readers.forEach {Text(it)}
-                    if(state.sandbox)Button(onClick={safe {kiosk.square.mockReader()}},enabled=state.authorized&&!state.busy){Text("Open simulated reader")}
-                    Button(onClick=::authorizeGoogle,enabled=!state.busy){Text("Authorize organization Google account")}
-                    Button(onClick={TabletSyncWorker.now(this@MainActivity);showSyncStatus()}){Text("Sync Sheets and email / status")}
-                    Button(onClick={KioskLockdown.resume(this@MainActivity);state.message="Kiosk screen pinned."}){Text("Pin kiosk screen")}
-                    if(KioskLockdown.managed(this@MainActivity))OutlinedButton(onClick={confirmRemoveLockdown=true}){Text("Remove kiosk lock-down (tablet maintenance)")}
-                    Button(onClick=::enableBootStartup){Text("Enable automatic startup")}
-                    Button(onClick={openTabletSettings()}){Text("Open tablet Settings")}
-                    Button(onClick={error="";changingPin=true}){Text("Change staff PIN")}
-                    Button(onClick=::staffExit){Text("Staff exit")}
-                }
+                if(state.staffUnlocked) StaffMenu(staffStatus,selfTestResults,testing,state.busy,onSelfTest=::selfTest,
+                    onClose={state.staffUnlocked=false;settings=false;selfTestResults=null},sections=staffSections())
             }
         }
     }
@@ -145,14 +133,16 @@ class MainActivity:ComponentActivity(),DefaultLifecycleObserver {
     }
     private var wakeTap=false // The tap that wakes a dimmed screen only brightens it; it never presses a button.
     private fun setDim(on:Boolean){dimmed=on;window.attributes=window.attributes.apply {screenBrightness=if(on)DIM_BRIGHTNESS else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE}}
+    private var ticks=0
     private fun idleTick() {
+        if(state.staffUnlocked && ++ticks%5==0)refreshStaffStatus()
         val idle=System.currentTimeMillis()-lastTouch
         if(idle>=DIM_AFTER_MS && !dimmed && !state.busy)setDim(true)
         if(state.busy || idleHandled)return
         if(state.verified in setOf("COMPLETED","FAILED","CANCELED") && idle>=THANK_YOU_MS) {idleHandled=true;finishDonation();return}
         if(!state.locked && idle>=RESET_AFTER_MS) {
             idleHandled=true // Never interrupts a saved payment: locked records stay until verified/closed.
-            state.clearForm();state.amount="18";state.staffUnlocked=false;settings=false;showPin=false;changingPin=false
+            state.clearForm();state.amount="18";state.staffUnlocked=false;settings=false;showPin=false;changingPin=false;selfTestResults=null
             pin="";confirm="";oldPin="";newPin="";newConfirm="";error=""
         }
     }
@@ -199,10 +189,10 @@ class MainActivity:ComponentActivity(),DefaultLifecycleObserver {
         task {
             val ok=io {val access=StaffAccess(this@MainActivity);if(!access.configured()){access.create(entered,confirmation);true}else access.verify(entered)}
             confirmation.fill('\u0000')
-            if(ok){state.staffUnlocked=true;showPin=false;error="";lifecycleScope.launch {delay(60000);state.staffUnlocked=false;settings=false}}else error="PIN not accepted; wait after five failed attempts."
+            if(ok){state.staffUnlocked=true;showPin=false;error="";selfTestResults=null;refreshStaffStatus();lifecycleScope.launch {delay(60000);state.staffUnlocked=false;settings=false}}else error="PIN not accepted; wait after five failed attempts."
         }
     }
-    private fun editSettings(){env=kiosk.config.optString("environment","sandbox");appId=kiosk.config.optString("application_id");location=kiosk.config.optString("location_id");googleAccount=kiosk.vault.read().optString("google_account");notifyEmails=kiosk.vault.read().optString("notify_emails");kiosk.vault.read().let {feePercent=java.math.BigDecimal(it.optInt("fee_bps",260)).movePointLeft(2).stripTrailingZeros().toPlainString();feeCents=it.optLong("fee_fixed_cents",15).toString();depositTo=it.optString("qb_deposit_to").ifBlank {"Undeposited Funds"}};callbackOrigin=kiosk.config.optString("callback_origin");settings=true}
+    private fun editSettings(){env=kiosk.config.optString("environment","sandbox");appId=kiosk.config.optString("application_id");location=kiosk.config.optString("location_id");googleAccount=kiosk.vault.read().optString("google_account");notifyEmails=kiosk.vault.read().optString("notify_emails");kiosk.vault.read().let {feePercent=java.math.BigDecimal(it.optInt("fee_bps",260)).movePointLeft(2).stripTrailingZeros().toPlainString();feeCents=it.optLong("fee_fixed_cents",15).toString();depositTo=it.optString("qb_deposit_to").ifBlank {"Undeposited Funds"}};callbackOrigin=kiosk.config.optString("callback_origin");weeklyStatus=kiosk.vault.read().optBoolean("weekly_status",true);settings=true}
     private fun selectEnvironment(value:String) {
         val saved=kiosk.vault.read().optJSONObject("config_$value")
         env=value;appId=saved?.optString("application_id").orEmpty();location=saved?.optString("location_id").orEmpty()
@@ -230,7 +220,7 @@ class MainActivity:ComponentActivity(),DefaultLifecycleObserver {
             kiosk.session.configure(JSONObject().put("environment",env).put("application_id",appId).put("location_id",location).put("callback_origin",approvedOrigin))
             if(googleAccount.isNotBlank())kiosk.vault.update {it.put("google_account",googleAccount)}
             require(depositTo.isNotBlank() && depositTo.none {it.isISOControl()})
-            kiosk.vault.update {it.put("notify_emails",notices.joinToString(",")).put("fee_bps",bps).put("fee_fixed_cents",fixed).put("qb_deposit_to",depositTo.trim())}
+            kiosk.vault.update {it.put("notify_emails",notices.joinToString(",")).put("fee_bps",bps).put("fee_fixed_cents",fixed).put("qb_deposit_to",depositTo.trim()).put("weekly_status",weeklyStatus)}
         }
         settings=false
         if(restart)state.message="Configuration saved. Restart the tablet to apply the Square environment change."
@@ -240,12 +230,12 @@ class MainActivity:ComponentActivity(),DefaultLifecycleObserver {
         check(state.staffUnlocked)
         if(!kiosk.initialized()){kiosk.square;recreate();return@task}
         val intent=io {kiosk.session.begin()};KioskLockdown.pause(this);startActivity(intent)
-        state.message="Kiosk unpinned for Square sign-in. Tap Pin kiosk screen when finished."
+        state.message="Kiosk unpinned for Square sign-in. Tap Lock kiosk screen when finished."
     }
     private fun connect()=task {check(state.staffUnlocked);authorizeSdk()}
     private suspend fun authorizeSdk() {
         val token=io {kiosk.session.token()};val loc=io {kiosk.session.location()}
-        val model=state;kiosk.square.onReadersChanged={model.readers=it}
+        val model=state;kiosk.square.onReadersChanged={model.readers=it;rememberReaders(it)}
         kotlinx.coroutines.suspendCancellableCoroutine<Unit> {continuation ->
             kiosk.square.authorize(token,loc){ok,message ->state.authorized=ok;state.message=message;if(continuation.isActive)continuation.resumeWith(if(ok)Result.success(Unit) else Result.failure(KioskError("SQUARE_SDK_AUTHORIZATION_FAILED")))}
         }
@@ -353,21 +343,104 @@ class MainActivity:ComponentActivity(),DefaultLifecycleObserver {
         if(!google.hasAllScopes(result))state.message="Google allowed only part of the access. Tap Authorize again and tick BOTH boxes (Drive files and Send email)."
         else {kiosk.vault.update {it.put("google_enabled",true)};TabletSyncWorker.now(this);state.message="Google authorized. Automatic sync is enabled."}
     }
+    /** Saves the last reader status the app saw, so the weekly email can report it. */
+    private fun rememberReaders(list:List<String>) {
+        val text=list.joinToString(", ")
+        lifecycleScope.launch {runCatching {io {
+            if(kiosk.vault.read().optString("reader_status")!=text)kiosk.vault.update {it.put("reader_status",text)
+                .put("reader_status_at",java.time.ZonedDateTime.now(KioskHealth.ZONE).format(java.time.format.DateTimeFormatter.ofPattern("EEE MMM d, h:mm a",java.util.Locale.US)))}
+        }}}
+    }
+    private fun refreshStaffStatus(){staffStatus=runCatching {KioskHealth.local(this,kiosk,state.authorized,state.readers)}.getOrElse {listOf(StaffCheck("Status",StaffCheck.Level.FAIL,"Could not read status. Payment records preserved."))}}
+    private fun errorCode(e:Exception)=when(e){is RemoteFailure->"HTTP_${e.status}";is KioskError->e.code;else->"NETWORK_OR_ACCOUNT_UNAVAILABLE"}
+    /** No-charge check of everything a donation needs; emails the result to staff so email is tested too. */
+    private fun selfTest()=task {
+        check(state.staffUnlocked)
+        testing=true;selfTestResults=null
+        try {
+            val results=mutableListOf<StaffCheck>()
+            fun ok(label:String,detail:String){results+=StaffCheck(label,StaffCheck.Level.OK,detail)}
+            fun warn(label:String,detail:String){results+=StaffCheck(label,StaffCheck.Level.WARN,detail)}
+            fun fail(label:String,detail:String){results+=StaffCheck(label,StaffCheck.Level.FAIL,detail)}
+            if(KioskLockdown.managed(this@MainActivity))ok("Kiosk lock","On.") else fail("Kiosk lock","Off — the tablet is not locked to the kiosk.")
+            val signedIn=io {kiosk.session.hasCredentials()}
+            if(!signedIn)fail("Square sign-in","Not signed in. Tap Sign in to Square.")
+            else try {io {kiosk.session.token()};ok("Square sign-in","Square accepted the tablet's sign-in.")}
+            catch(e:CancellationException){throw e}catch(e:Exception){fail("Square sign-in","${errorCode(e)}. Tap Sign in to Square.")}
+            if(signedIn && !state.authorized)try {authorizeSdk()} catch(e:CancellationException){throw e} catch(_:Exception){}
+            if(state.authorized)ok("Square payments","Connected.") else fail("Square payments","Not connected. Tap Reconnect Square.")
+            if(state.authorized) {runCatching {kiosk.square.refreshReaders()};delay(800)}
+            when {
+                !state.authorized -> warn("Card reader","Not checked (Square not connected).")
+                state.readers.any(KioskHealth::readerReady) -> ok("Card reader","Ready.")
+                state.readers.isEmpty() -> if(state.sandbox)warn("Card reader","No reader. In Sandbox, use the simulated reader.") else fail("Card reader","No reader found. Charge it, then Pair a reader.")
+                else -> fail("Card reader",state.readers.joinToString(", ")+". Try Reconnect reader.")
+            }
+            KioskHealth.power(this@MainActivity)?.let {if(it.charging)ok("Tablet power","${it.percent}%, plugged in.") else warn("Tablet power","${it.percent}%, NOT plugged in.")}
+            val pending=io {KioskHealth.pending(kiosk.ledger.records())}
+            if(pending.total==0 && pending.review==0)ok("Waiting to sync","Nothing waiting.") else warn("Waiting to sync","${pending.sheetRows} Sheet row(s), ${pending.emails} email(s), ${pending.review} to check by hand.")
+            val root=io {kiosk.vault.read()}
+            if(!root.has("google_account"))fail("Google","No Google account set. Open Settings.")
+            else try {
+                val google=GoogleDonations(this@MainActivity,kiosk.vault)
+                val token=google.token()
+                ok("Google connection","Connected as ${root.getString("google_account")}.")
+                try {ok("Google Sheet",io {google.sheetStatus(token,kiosk.config.optString("environment","sandbox"))})}
+                catch(e:CancellationException){throw e}catch(e:Exception){fail("Google Sheet",errorCode(e))}
+                val recipients=root.optString("notify_emails").ifBlank {root.getString("google_account")}
+                val failed=results.count {it.level==StaffCheck.Level.FAIL}
+                val body="Kiosk self-test run from the staff menu"+(if(state.sandbox)" (Sandbox mode)" else "")+". No card was charged.\r\n\r\n"+
+                    results.joinToString("") {"${if(it.level==StaffCheck.Level.OK)"OK  " else if(it.level==StaffCheck.Level.WARN)"NOTE" else "FIX "}  ${it.label}: ${it.detail}\r\n"}+
+                    "\r\nIf you received this email, sending email works.\r\nApp version ${BuildConfig.VERSION_NAME}.\r\n"
+                try {io {google.sendStatus(token,"Kiosk self-test: "+(if(failed==0)"passed" else "$failed problem${if(failed==1)"" else "s"}"),body)};ok("Test email","Sent to $recipients. Check that it arrived.")}
+                catch(e:CancellationException){throw e}catch(e:Exception){fail("Test email",errorCode(e))}
+            } catch(e:CancellationException){throw e}catch(e:Exception){fail("Google connection","${errorCode(e)}. Tap Connect Google.")}
+            selfTestResults=results
+            state.message=if(results.none {it.level==StaffCheck.Level.FAIL})"Self-test passed. No card was charged." else "Self-test found problems — see the list below."
+        } finally {testing=false;refreshStaffStatus()}
+    }
+    private fun staffSections():List<StaffSection> {
+        val ready=state.authorized&&!state.busy
+        return buildList {
+            add(StaffSection("Square and card reader","Sign in once; reconnect if payments or the reader stop working.",buildList {
+                add(StaffAction("Sign in to Square",!state.busy,onClick=::signIn))
+                add(StaffAction("Reconnect Square",!state.busy,onClick=::connect))
+                add(StaffAction("Pair a reader",ready) {safe {kiosk.square.readerSettings {state.message=it}}})
+                add(StaffAction("Reconnect reader",ready) {safe {kiosk.square.reconnect()};refreshStaffStatus()})
+                add(StaffAction("Reader permissions",onClick=::grantPermissions))
+                if(state.sandbox)add(StaffAction("Simulated reader",ready) {safe {kiosk.square.mockReader()}})
+            }))
+            add(StaffSection("Google emails and Sheet","Tick BOTH boxes when Google asks.",listOf(
+                StaffAction("Connect Google",!state.busy,onClick=::authorizeGoogle),
+                StaffAction("Sync now") {TabletSyncWorker.now(this@MainActivity);showSyncStatus();refreshStaffStatus()})))
+            add(StaffSection("Settings","Square IDs, Google account, notice emails, card fee, QuickBooks and weekly email.",listOf(
+                StaffAction("Kiosk settings",!state.busy,primary=true,onClick=::editSettings),
+                StaffAction("Change staff PIN") {error="";changingPin=true})))
+            add(StaffSection("Tablet","Leave the kiosk for maintenance. Restart the tablet or tap Lock kiosk to return.",buildList {
+                add(StaffAction("Lock kiosk screen") {KioskLockdown.resume(this@MainActivity);state.message="Kiosk screen pinned."})
+                add(StaffAction("Open tablet Settings") {openTabletSettings()})
+                add(StaffAction("Staff exit (regular mode)",onClick=::staffExit))
+                if(!KioskLockdown.managed(this@MainActivity))add(StaffAction("Enable automatic startup",onClick=::enableBootStartup))
+            }))
+            if(KioskLockdown.managed(this@MainActivity))add(StaffSection("Repair only","Only when repairing or replacing the tablet. Turning it back on needs a computer.",listOf(
+                StaffAction("Remove kiosk lock-down",danger=true) {confirmRemoveLockdown=true})))
+        }
+    }
     private fun showSyncStatus(){val rows=kiosk.ledger.records().filter {it.getString("status")=="COMPLETED"};val sheets=rows.count {!it.optBoolean("sheet_done")};val emails=rows.count {it.optString("email_status") in setOf("PENDING","SENDING","NEEDS_STAFF_REVIEW")};val last=kiosk.vault.read();state.message="Saved updates: $sheets Sheet rows and $emails emails pending. Google: ${last.optString("google_sync_error").ifEmpty {"ready"}}; Square: ${last.optString("square_sync_error").ifEmpty {"ready"}}. ${KioskLockdown.status(this)}. Payment records preserved."}
     private fun grantPermissions(){val list=mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION,Manifest.permission.READ_PHONE_STATE);if(Build.VERSION.SDK_INT>=31)list+=listOf(Manifest.permission.BLUETOOTH_SCAN,Manifest.permission.BLUETOOTH_CONNECT);if(Build.VERSION.SDK_INT>=33)list+=Manifest.permission.POST_NOTIFICATIONS;if(Build.VERSION.SDK_INT<=29)list+=Manifest.permission.RECORD_AUDIO;permissions.launch(list.toTypedArray())}
     private fun enableBootStartup(){if(!state.staffUnlocked)return;if(Build.VERSION.SDK_INT>=29){val roles=getSystemService(android.app.role.RoleManager::class.java);if(roles.isRoleAvailable(android.app.role.RoleManager.ROLE_HOME)&&!roles.isRoleHeld(android.app.role.RoleManager.ROLE_HOME))startActivity(roles.createRequestRoleIntent(android.app.role.RoleManager.ROLE_HOME))}}
-    /** Staff shortcut: pause lock-down and open Android Settings; restart or Pin kiosk screen re-locks. */
+    /** Staff shortcut: pause lock-down and open Android Settings; restart or Lock kiosk screen re-locks. */
     private fun openTabletSettings() {
         if(!state.staffUnlocked)return
         KioskLockdown.pause(this);state.staffUnlocked=false
         startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
-        state.message="Tablet Settings opened. Restart the tablet or tap Pin kiosk screen to lock the kiosk again."
+        state.message="Tablet Settings opened. Restart the tablet or tap Lock kiosk screen to lock the kiosk again."
     }
     private fun staffExit() {
         if(!state.staffUnlocked)return
         KioskLockdown.pause(this);state.staffUnlocked=false
-        // Regular mode: the normal home screen is back until restart or Pin kiosk screen.
-        if(KioskLockdown.managed(this)){startActivity(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));state.message="Regular mode. Restart the tablet or tap Pin kiosk screen to return to kiosk mode.";return}
+        // Regular mode: the normal home screen is back until restart or Lock kiosk screen.
+        if(KioskLockdown.managed(this)){startActivity(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));state.message="Regular mode. Restart the tablet or tap Lock kiosk screen to return to kiosk mode.";return}
         if(Build.VERSION.SDK_INT>=29&&getSystemService(android.app.role.RoleManager::class.java).isRoleHeld(android.app.role.RoleManager.ROLE_HOME))startActivity(android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS))else finishAndRemoveTask()
     }
     private fun safe(block:()->Unit){try{block()}catch(_:Exception){state.message="READER_OPERATION_UNAVAILABLE — authorize Square and check permissions."}}

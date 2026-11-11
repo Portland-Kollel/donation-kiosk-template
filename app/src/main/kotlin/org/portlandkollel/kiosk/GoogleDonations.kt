@@ -27,6 +27,33 @@ internal class GoogleDonations(private val context:Context,private val vault:Sta
         Identity.getAuthorizationClient(context).authorize(request()).addOnSuccessListener {if(continuation.isActive)continuation.resume(it)}
             .addOnFailureListener {if(continuation.isActive)continuation.resumeWithException(KioskError("GOOGLE_AUTHORIZATION_"+(if(it is com.google.android.gms.common.api.ApiException)it.statusCode.toString() else "UNAVAILABLE")))}
     }
+    /** A fresh Google access token, or a staff-readable error if Google needs to be reconnected. */
+    suspend fun token():String {
+        val auth=authorization();if(auth.hasResolution())throw KioskError("GOOGLE_STAFF_CONSENT_REQUIRED")
+        if(!hasAllScopes(auth))throw KioskError("GOOGLE_PERMISSIONS_INCOMPLETE")
+        return auth.accessToken?:throw KioskError("GOOGLE_AUTHORIZATION_REQUIRED")
+    }
+    /** Self-test: read-only check that the donations Sheet is still private and has the expected columns. */
+    fun sheetStatus(token:String,environment:String):String {
+        val key=if(environment=="sandbox")"sandbox_test_sheet_id" else "sheet_id"
+        val sheet=vault.read().optString(key)
+        if(sheet.isEmpty())return "Not created yet — the first gift creates it."
+        ensurePrivate(token,sheet)
+        check(read(token,sheet,tabRange(ACTIVITY_TAB,"A1:${col(HEADERS.size)}1"))?.toString()==headers().toString()) {"EXISTING_SHEET_COLUMNS_REQUIRE_REVIEW"}
+        return "Private, columns OK."
+    }
+    /**
+     * Staff-only status message (self-test, weekly status) to the gift-notice recipients. Not tied to any
+     * donation, so it never touches gift records; a duplicate status email is harmless.
+     */
+    fun sendStatus(token:String,subject:String,text:String) {
+        val sender=vault.read().getString("google_account");val to=noticeRecipients()
+        check(sender.matches(EMAIL) && to.isNotEmpty() && to.size<=5 && to.all {it.matches(EMAIL)})
+        post(token,raw(sender,to,subject,"status-${java.util.UUID.randomUUID()}",text))
+    }
+    private fun raw(sender:String,to:List<String>,subject:String,messageId:String,text:String)=
+        "From: $FROM_NAME <$sender>\r\nTo: ${to.joinToString(", ")}\r\nSubject: $subject\r\nMessage-ID: <$messageId@${sender.substringAfter('@')}>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n"+Base64.encodeToString(text.toByteArray(Charsets.UTF_8),Base64.NO_WRAP)
+    private fun post(token:String,raw:String)=request("https://gmail.googleapis.com/gmail/v1/users/me/messages/send","POST",token,JSONObject().put("raw",Base64.encodeToString(raw.toByteArray(Charsets.UTF_8),Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)))
     suspend fun sync() {
         if(TabletLedger(vault).records().none(::needsSync))return
         val auth=authorization();if(auth.hasResolution())throw KioskError("GOOGLE_STAFF_CONSENT_REQUIRED")
@@ -90,6 +117,8 @@ internal class GoogleDonations(private val context:Context,private val vault:Sta
     private fun headers()=JSONArray(HEADERS)
     private companion object {
         /** Every attempt (completed, canceled, failed), with details QuickBooks has no column for. */
+        /** Name shown as the sender of every kiosk email. */
+        const val FROM_NAME="Portland Kollel"
         const val ACTIVITY_TAB="All kiosk activity"
         val HEADERS=listOf("Date","Status","Gift USD","Card fee covered USD","Total charged USD","First name","Last name","Email","Cell phone",
             "Street","City","State","ZIP","Anonymous","In honor / memory of","Square payment ID","Donation reference","Thank-you email","Environment","Kiosk receipt no.")
@@ -156,10 +185,10 @@ internal class GoogleDonations(private val context:Context,private val vault:Sta
         }
         val sender=vault.read().getString("google_account")
         check(sender.matches(EMAIL) && to.isNotEmpty() && to.size<=5 && to.all {it.matches(EMAIL)})
-        val raw="From: Portland Kollel <$sender>\r\nTo: ${to.joinToString(", ")}\r\nSubject: $subject\r\nMessage-ID: <$id.$you@example.org>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n"+Base64.encodeToString(text.toByteArray(Charsets.UTF_8),Base64.NO_WRAP)
+        val message=raw(sender,to,subject,"$id.$statusKey",text)
         ledger.change(id){it.put(statusKey,"SENDING")}
         val outcome=try {
-            request("https://gmail.googleapis.com/gmail/v1/users/me/messages/send","POST",token,JSONObject().put("raw",Base64.encodeToString(raw.toByteArray(Charsets.UTF_8),Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)))
+            post(token,message)
             "SENT"
         } catch(e:RemoteFailure) {
             if(e.status==429) "PENDING" else "NEEDS_STAFF_REVIEW" // 4xx: rejected; 5xx: may have been sent

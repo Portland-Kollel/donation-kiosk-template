@@ -7,8 +7,8 @@ android {
         applicationId = "org.portlandkollel.kiosk"
         minSdk = 28
         targetSdk = 36
-        versionCode = 18
-        versionName = "0.5.5"
+        versionCode = 19
+        versionName = "0.5.6"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("boolean", "REAL_CHARGES_ENABLED", "false")
         // Legacy Sandbox flavor only; the complete app receives public config over trusted USB.

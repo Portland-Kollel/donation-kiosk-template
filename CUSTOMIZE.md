@@ -20,7 +20,7 @@ organization's name. The main places are:
 | File | What's there |
 | --- | --- |
 | `app/src/main/kotlin/org/portlandkollel/kiosk/GivingScreen.kt` | Logo description; "Add $X so **the Kollel** receives the full $Y"; receipt wording |
-| `app/src/main/kotlin/org/portlandkollel/kiosk/GoogleDonations.kt` | Email "From" name, email sign-off, Google Sheet title |
+| `app/src/main/kotlin/org/portlandkollel/kiosk/GoogleDonations.kt` | Email "From" name (`FROM_NAME`), email sign-off, Google Sheet title |
 | `app/src/main/kotlin/org/portlandkollel/kiosk/KioskBootReceiver.kt` | "Open Kollel Giving Kiosk" notification |
 | `app/src/main/AndroidManifest.xml` | App name shown on the tablet (`android:label`) |
 | `app/src/androidTest/.../GivingScreenTest.kt` | Update the expected fee-cover sentence to match |

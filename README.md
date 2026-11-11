@@ -39,6 +39,8 @@ What it does:
   It restarts straight into the kiosk.
 - **Hidden staff menu**: press and hold the logo for 3 seconds, then enter a PIN.
 - Resets after 90 seconds of no activity and dims the screen when idle.
+- **Self-test and weekly status email**: one tap in the staff menu checks Square, the reader, Google
+  and the lock without charging a card, and every Monday staff get a short "kiosk is OK" email.
 - Each gift is saved, encrypted on the tablet, before the card is charged. If anything is interrupted,
   the app asks Square what happened. It never charges twice.
 - Nothing needs to stay running on a computer. The only online helper is a free Cloudflare Worker for
