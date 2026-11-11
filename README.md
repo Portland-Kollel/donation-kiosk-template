@@ -74,6 +74,12 @@ Plan on an afternoon the first time. After that it mostly runs itself; a quick m
 
 ## Get started
 
+**Easiest:** open [AI_SETUP.md](AI_SETUP.md), copy the box, and paste it into an AI coding assistant
+such as [Claude Code](https://claude.ai/code). It interviews you, makes your own version of the app, and
+walks you through setup.
+
+Or follow the guides yourself:
+
 1. **[SETUP.md](SETUP.md)**: step-by-step setup, from zero to taking donations.
 2. **[CUSTOMIZE.md](CUSTOMIZE.md)**: put in your organization's name, logo, wording and categories.
 
