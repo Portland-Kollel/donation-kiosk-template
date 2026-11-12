@@ -52,7 +52,9 @@ internal class GoogleDonations(private val context:Context,private val vault:Sta
         post(token,raw(sender,to,subject,"status-${java.util.UUID.randomUUID()}",text))
     }
     private fun raw(sender:String,to:List<String>,subject:String,messageId:String,text:String)=
-        "From: $FROM_NAME <$sender>\r\nTo: ${to.joinToString(", ")}\r\nSubject: $subject\r\nMessage-ID: <$messageId@${sender.substringAfter('@')}>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n"+Base64.encodeToString(text.toByteArray(Charsets.UTF_8),Base64.NO_WRAP)
+        "From: $FROM_NAME <$sender>\r\nTo: ${to.joinToString(", ")}\r\nSubject: ${header(subject)}\r\nMessage-ID: <$messageId@${sender.substringAfter('@')}>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n"+Base64.encodeToString(text.toByteArray(Charsets.UTF_8),Base64.NO_WRAP)
+    /** Non-ASCII subjects (·, —, accents) must be RFC 2047 encoded or mail apps show them garbled (e.g. "Â·"). */
+    private fun header(text:String)=if(text.all {it.code in 32..126})text else "=?UTF-8?B?"+Base64.encodeToString(text.toByteArray(Charsets.UTF_8),Base64.NO_WRAP)+"?="
     private fun post(token:String,raw:String)=request("https://gmail.googleapis.com/gmail/v1/users/me/messages/send","POST",token,JSONObject().put("raw",Base64.encodeToString(raw.toByteArray(Charsets.UTF_8),Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)))
     suspend fun sync() {
         if(TabletLedger(vault).records().none(::needsSync))return

@@ -347,6 +347,7 @@ class MainActivity:ComponentActivity(),DefaultLifecycleObserver {
     private fun rememberReaders(list:List<String>) {
         val text=list.joinToString(", ")
         lifecycleScope.launch {runCatching {io {
+            if(list.any(KioskHealth::readerReady))kiosk.vault.update {it.put("reader_ready_ms",System.currentTimeMillis())}
             if(kiosk.vault.read().optString("reader_status")!=text)kiosk.vault.update {it.put("reader_status",text)
                 .put("reader_status_at",java.time.ZonedDateTime.now(KioskHealth.ZONE).format(java.time.format.DateTimeFormatter.ofPattern("EEE MMM d, h:mm a",java.util.Locale.US)))}
         }}}

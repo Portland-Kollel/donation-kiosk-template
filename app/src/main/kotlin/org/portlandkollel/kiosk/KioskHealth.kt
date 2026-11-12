@@ -32,6 +32,8 @@ internal object KioskHealth {
         return Power(level*100/scale,battery.getIntExtra(BatteryManager.EXTRA_PLUGGED,0)!=0)
     }
     fun readerReady(status:String)=status.substringAfter("Reader:").trim().equals("Ready",ignoreCase=true)
+    /** Normal for a minute after the app starts or the reader wakes up; not a fault on its own. */
+    fun readerBusy(status:String)=status.substringAfter("Reader:").trim().let {it.startsWith("Connecting",true)||it.startsWith("Updating",true)}
 
     data class Pending(val sheetRows:Int,val emails:Int,val review:Int) {val total get()=sheetRows+emails}
     fun pending(records:List<JSONObject>):Pending {
@@ -66,6 +68,7 @@ internal object KioskHealth {
             !authorized -> StaffCheck("Card reader",StaffCheck.Level.WARN,"Unknown until Square is connected.")
             readers.isEmpty() -> StaffCheck("Card reader",if(env=="sandbox")StaffCheck.Level.WARN else StaffCheck.Level.FAIL,"No reader found. Charge it, then Pair a reader.")
             ready -> StaffCheck("Card reader",StaffCheck.Level.OK,"Ready.")
+            readers.all(::readerBusy) -> StaffCheck("Card reader",StaffCheck.Level.WARN,readers.joinToString(", ")+". Usually ready within a minute.")
             else -> StaffCheck("Card reader",StaffCheck.Level.FAIL,readers.joinToString(", ")+". Try Reconnect reader.")
         }
         val googleError=root.optString("google_sync_error")
@@ -117,9 +120,14 @@ internal object KioskHealth {
         val checks=mutableListOf<StaffCheck>()
         // The reader is only visible to the app while it is open; report the last status it saw.
         checks+=local(context,app,authorized=true,readers=emptyList()).filter {it.label !in setOf("Card reader","Weekly status email")}
-        checks+=if(readers.isEmpty())StaffCheck("Card reader",StaffCheck.Level.WARN,"No status seen yet. Run the self-test in the staff menu.")
-            else if(readers.split(", ").any(::readerReady))StaffCheck("Card reader",StaffCheck.Level.OK,"Ready (last seen ${root.optString("reader_status_at")}).")
-            else StaffCheck("Card reader",StaffCheck.Level.FAIL,"$readers (last seen ${root.optString("reader_status_at")}). Check the reader is charged.")
+        // A reader that was Ready within the last 2 hours, or is only reconnecting, is not an alarm.
+        val lastReady=root.optLong("reader_ready_ms",0L);val recentlyReady=System.currentTimeMillis()-lastReady<2*60*60*1000L
+        checks+=when {
+            readers.isEmpty() -> StaffCheck("Card reader",StaffCheck.Level.WARN,"No status seen yet. Run the self-test in the staff menu.")
+            readers.split(", ").any(::readerReady) -> StaffCheck("Card reader",StaffCheck.Level.OK,"Ready (last checked ${root.optString("reader_status_at")}).")
+            recentlyReady || readers.split(", ").all(::readerBusy) -> StaffCheck("Card reader",StaffCheck.Level.WARN,"$readers (last checked ${root.optString("reader_status_at")}). Usually reconnects by itself; run the self-test to confirm.")
+            else -> StaffCheck("Card reader",StaffCheck.Level.FAIL,"$readers (last checked ${root.optString("reader_status_at")}). Check the reader is charged and near the tablet.")
+        }
         val problems=checks.filter {it.level==StaffCheck.Level.FAIL}
         val money=GivingSafety.formatCents(total)
         val subject=(if(env=="sandbox")"[Sandbox] " else "")+"Kiosk weekly status: "+(if(problems.isEmpty())"OK" else "NEEDS ATTENTION")+
@@ -127,7 +135,7 @@ internal object KioskHealth {
         val text=buildString {
             append(if(problems.isEmpty())"The donation kiosk is working.\r\n\r\n" else "The donation kiosk needs attention:\r\n"+problems.joinToString("") {"  • ${it.label}: ${it.detail}\r\n"}+"\r\n")
             append("Last 7 days: ${completed.size} completed gift(s), $money total")
-            if(canceled>0)append("; $canceled canceled or declined")
+            if(canceled>0)append("; $canceled canceled or declined (no charge)")
             append(".\r\n")
             app.ledger.records().filter {it.getString("environment")==env && it.getString("status")=="COMPLETED"}.maxByOrNull {it.optString("confirmed_date")}?.let {
                 append("Most recent gift: ${GivingSafety.formatCents(it.getLong("cents"))} on ${java.time.OffsetDateTime.parse(it.getString("confirmed_date")).format(DateTimeFormatter.ofPattern("EEE MMM d, h:mm a",Locale.US))}.\r\n")
