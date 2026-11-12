@@ -35,7 +35,9 @@ internal object KioskHealth {
 
     data class Pending(val sheetRows:Int,val emails:Int,val review:Int) {val total get()=sheetRows+emails}
     fun pending(records:List<JSONObject>):Pending {
-        val done=records.filter {it.getString("status") in TabletLedger.TERMINAL && it.optBoolean("square_verified")}
+        // Same rule as the Google sync: only records that have a Sheet row are ever synced. Older records without
+        // one (from early testing) are not waiting for anything, so they are not counted.
+        val done=records.filter {it.getString("status") in TabletLedger.TERMINAL && it.optBoolean("square_verified") && it.has("sheet_row")}
         return Pending(done.count {!it.optBoolean("sheet_done")},
             done.count {it.optString("email_status") in setOf("PENDING","SENDING") || it.optString("staff_notice") in setOf("PENDING","SENDING")},
             done.count {it.optString("email_status")=="NEEDS_STAFF_REVIEW" || it.optString("staff_notice")=="NEEDS_STAFF_REVIEW"})
