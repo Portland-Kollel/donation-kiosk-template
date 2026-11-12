@@ -24,6 +24,9 @@ class TabletSyncWorker(context:Context,params:WorkerParameters):CoroutineWorker(
             if(app.vault.read().has("google_account"))GoogleDonations(applicationContext,app.vault).sync()
             status("google_sync_error","")
         } catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){retry=true;status("google_sync_error",code(e))}
+        // Weekly status email to staff; never retried immediately (the next hourly run tries again).
+        try {KioskHealth.weeklyStatusIfDue(applicationContext,app);status("status_email_error","")}
+        catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){status("status_email_error",code(e))}
         if(retry)Result.retry() else Result.success()
     }}
     companion object {

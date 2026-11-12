@@ -46,7 +46,7 @@ internal object KioskLockdown {
         val dpm=dpm(context);val admin=admin(context)
         runCatching {dpm.setLockTaskPackages(admin,arrayOf(context.packageName))}
         runCatching {dpm.setLockTaskFeatures(admin,DevicePolicyManager.LOCK_TASK_FEATURE_NONE)}
-        // Regular mode (staff exit) gives the normal home screen back until restart or Pin kiosk screen.
+        // Regular mode (staff exit) gives the normal home screen back until restart or Lock kiosk screen.
         if(!paused(context))runCatching {
             val home=IntentFilter(Intent.ACTION_MAIN).apply {addCategory(Intent.CATEGORY_HOME);addCategory(Intent.CATEGORY_DEFAULT)}
             dpm.addPersistentPreferredActivity(admin,home,ComponentName(context,MainActivity::class.java))
@@ -60,7 +60,7 @@ internal object KioskLockdown {
         applyPolicies(activity)
         if(!paused(activity))runCatching {activity.startLockTask()}
     }
-    /** Lets staff use the browser/Google consent screens; lock-down resumes on restart or Pin kiosk screen. */
+    /** Lets staff use the browser/Google consent screens; lock-down resumes on restart or Lock kiosk screen. */
     fun pause(activity:Activity) {
         setPaused(activity,true);runCatching {activity.stopLockTask()}
         if(managed(activity))runCatching {dpm(activity).clearPackagePersistentPreferredActivities(admin(activity),activity.packageName)}

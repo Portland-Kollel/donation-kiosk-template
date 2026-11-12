@@ -170,7 +170,7 @@ adb shell dpm set-device-owner org.portlandkollel.kiosk/.KioskAdminReceiver
 ### 8c. Staff menu basics
 
 Open the app. **Press and hold the logo for 3 seconds** to open the staff menu, and create a staff PIN.
-Under **Square and Google settings**, enter:
+Tap **Kiosk settings** and enter:
 
 - **Square application ID** (`sq0idp-…`) and **Location ID** (if you have more than one location)
 - **Cloudflare Worker HTTPS origin**: your Worker origin from step 5
@@ -183,11 +183,12 @@ Under **Square and Google settings**, enter:
 1. Add your Google account back to the tablet (*Settings → Passwords & accounts*).
 2. Staff menu → switch to **Production** → **Sign in to Square** → approve → tap the button to return
    to the kiosk.
-3. **Grant reader permissions** → **Reader setup and pairing** → hold the reader's button until its
+3. **Reader permissions** → **Pair a reader** → hold the reader's button until its
    lights flash to pair your Square Reader (2nd generation).
-4. **Organization Google account** → choose the account → **Authorize organization Google account**.
+4. Make sure **Organization Google account** is set in **Kiosk settings**, then tap **Connect Google**.
    Tick **both** permission boxes.
-5. **Close staff menu**. Restart the tablet to confirm it comes straight back to the locked kiosk.
+5. Tap **Run self-test** and check that every line has a ✓ and the test email arrives. Then tap
+   **Close**. Restart the tablet to confirm it comes straight back to the locked kiosk.
 
 ## 9. Test with a real $1 gift
 
@@ -207,7 +208,14 @@ Funds).
 ### Everyday staff tips
 
 - **Staff menu:** hold the logo 3 seconds → PIN.
-- **Staff exit:** the tablet works normally until restarted or until you tap **Pin kiosk screen**.
+- **Staff exit:** the tablet works normally until restarted or until you tap **Lock kiosk screen**.
+- **Status panel:** the top of the staff menu shows a ✓, ! or ✕ for the kiosk lock, Square, the card
+  reader, Google, anything waiting to sync, and tablet power.
+- **Run self-test:** checks everything a donation needs and emails staff a test message. **No card is
+  charged.** Good for a monthly check.
+- **Weekly status email:** every Monday after 9 am the kiosk emails the gift-notice addresses a short
+  report (gifts that week, anything that needs attention). If it stops arriving, check the kiosk. Turn it
+  off in **Kiosk settings** if you don't want it.
 - **Never clear the app's data.** Unsynced gift records live on the tablet.
 
 ---

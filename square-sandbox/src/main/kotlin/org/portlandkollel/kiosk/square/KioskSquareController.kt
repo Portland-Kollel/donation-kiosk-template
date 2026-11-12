@@ -49,7 +49,7 @@ class KioskSquareController(application: Application, val mode: KioskMode, appli
         clearReaders = { callback.clear() }; refreshReaders()
     }
     fun refreshReaders() {
-        onReadersChanged?.invoke(MobilePaymentsSdk.readerManager().getReaders().map { "Reader: ${it.status}" })
+        onReadersChanged?.invoke(MobilePaymentsSdk.readerManager().getReaders().map { "Reader: ${it.status::class.simpleName ?: it.status}" })
     }
     fun readerSettings(done: (String) -> Unit) {
         check(MobilePaymentsSdk.authorizationManager().authorizationState.isAuthorized)
