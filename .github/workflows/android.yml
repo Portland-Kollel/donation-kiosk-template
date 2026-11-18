@@ -68,7 +68,7 @@ jobs:
                       message=case.get('classname','')+'.'+case.get('name','')+': '+failure.get('message','')[:1600]
                       print('::error::'+message.replace('%','%25').replace('\r','%0D').replace('\n','%0A'))
           PY
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         continue-on-error: true # storage quota must not turn passing tests red
         with:
@@ -104,7 +104,7 @@ jobs:
           python3 tools/complete_apk_metadata.py app/build/outputs/apk/debug/app-debug.apk complete-apk.json
       # Debug APKs (~110 MB each) are no longer kept: they exhausted the Actions storage quota.
       # Installable builds come from the signed live release (GitHub Releases, no Actions storage).
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         continue-on-error: true # storage quota must not turn passing tests red
         with:
