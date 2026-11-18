@@ -149,6 +149,9 @@ class MainActivity:ComponentActivity(),DefaultLifecycleObserver {
     private companion object {const val RESET_AFTER_MS=90_000L;const val DIM_AFTER_MS=120_000L;const val THANK_YOU_MS=15_000L;const val DIM_BRIGHTNESS=0.08f}
     override fun onResume() {
         super<ComponentActivity>.onResume()
+        // Back from Staff exit or tablet Settings: opening the kiosk again locks it again (no PIN, no computer).
+        if(leftForRegular && KioskLockdown.relockOnReturn(this)){KioskLockdown.setRelockOnReturn(this,false);KioskLockdown.resume(this);state.message="Kiosk locked again."}
+        leftForRegular=false
         KioskLockdown.apply(this);lastTouch=System.currentTimeMillis();idleHandled=false
         if(kiosk.vault.read().has("oauth"))task {
             if(io {kiosk.session.complete()}) {state.message="Square authorization saved on this tablet.";KioskLockdown.resumeIfManaged(this@MainActivity);authorizeSdk()}
@@ -156,6 +159,9 @@ class MainActivity:ComponentActivity(),DefaultLifecycleObserver {
         } else if(kiosk.session.hasCredentials() && !state.authorized)task {authorizeSdk()}
         restore();TabletSyncWorker.now(this);watchForNoCharge()
     }
+    /** True once the kiosk has actually gone to the background after Staff exit / Open tablet Settings. */
+    private var leftForRegular=false
+    override fun onStop() {super<ComponentActivity>.onStop();if(KioskLockdown.relockOnReturn(this))leftForRegular=true}
     override fun onStop(owner:LifecycleOwner){state.clearForm();state.staffUnlocked=false;showPin=false;pin="";confirm="";settings=false;changingPin=false;oldPin="";newPin="";newConfirm=""}
     override fun onDestroy(){ProcessLifecycleOwner.get().lifecycle.removeObserver(this);super<ComponentActivity>.onDestroy()}
     private fun restore() {
@@ -433,15 +439,21 @@ class MainActivity:ComponentActivity(),DefaultLifecycleObserver {
     /** Staff shortcut: pause lock-down and open Android Settings; restart or Lock kiosk screen re-locks. */
     private fun openTabletSettings() {
         if(!state.staffUnlocked)return
-        KioskLockdown.pause(this);state.staffUnlocked=false
+        KioskLockdown.pause(this);KioskLockdown.setRelockOnReturn(this,true);state.staffUnlocked=false
         startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
-        state.message="Tablet Settings opened. Restart the tablet or tap Lock kiosk screen to lock the kiosk again."
+        state.message="Tablet Settings opened. Open the kiosk app again (or restart) to lock it."
     }
     private fun staffExit() {
         if(!state.staffUnlocked)return
         KioskLockdown.pause(this);state.staffUnlocked=false
         // Regular mode: the normal home screen is back until restart or Lock kiosk screen.
-        if(KioskLockdown.managed(this)){startActivity(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));state.message="Regular mode. Restart the tablet or tap Lock kiosk screen to return to kiosk mode.";return}
+        if(KioskLockdown.managed(this)){
+            val launcher=KioskLockdown.regularLauncher(this)
+            if(launcher==null){KioskLockdown.resume(this);state.message="No regular home screen app found on this tablet. Kiosk stays locked.";return}
+            KioskLockdown.setRelockOnReturn(this,true)
+            startActivity(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME).setComponent(launcher).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            state.message="Regular mode. Open the kiosk app again, or restart the tablet, to lock it.";return
+        }
         if(Build.VERSION.SDK_INT>=29&&getSystemService(android.app.role.RoleManager::class.java).isRoleHeld(android.app.role.RoleManager.ROLE_HOME))startActivity(android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS))else finishAndRemoveTask()
     }
     private fun safe(block:()->Unit){try{block()}catch(_:Exception){state.message="READER_OPERATION_UNAVAILABLE — authorize Square and check permissions."}}
