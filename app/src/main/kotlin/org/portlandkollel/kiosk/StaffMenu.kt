@@ -32,7 +32,7 @@ internal fun StaffMenu(status:List<StaffCheck>,selfTest:List<StaffCheck>?,testin
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("STAFF MENU",fontFamily=StaffTitle,fontSize=40.sp,color=StaffBlue)
-                Text("Locks again by itself after 1 minute.",fontSize=15.sp,color=StaffMuted)
+                Text("App version ${BuildConfig.VERSION_NAME} · Locks again by itself after 1 minute.",fontSize=15.sp,color=StaffMuted)
             }
             OutlinedButton(onClick=onClose,shape=RoundedCornerShape(14.dp),border=BorderStroke(2.dp,StaffBlue),modifier=Modifier.height(56.dp)) {
                 Text("Close  ✕",fontSize=18.sp,fontWeight=FontWeight.SemiBold,color=StaffBlue)

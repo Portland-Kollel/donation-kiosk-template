@@ -76,7 +76,7 @@ jobs:
           path: |
             device-security/build/outputs/androidTest-results/
             app/build/outputs/androidTest-results/
-          retention-days: 7
+          retention-days: 1
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -113,4 +113,4 @@ jobs:
             complete-apk.json
             app/build/reports/lint-results-debug.*
             core/build/reports/tests/test/
-          retention-days: 3
+          retention-days: 1
