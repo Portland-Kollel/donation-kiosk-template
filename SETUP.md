@@ -208,7 +208,8 @@ Funds).
 ### Everyday staff tips
 
 - **Staff menu:** hold the logo 3 seconds → PIN.
-- **Staff exit:** the tablet works normally until restarted or until you tap **Lock kiosk screen**.
+- **Staff exit:** opens the tablet's normal home screen so you can use other apps. To lock it again, just open
+  the kiosk app again, or restart the tablet. No computer needed.
 - **Status panel:** the top of the staff menu shows a ✓, ! or ✕ for the kiosk lock, Square, the card
   reader, Google, anything waiting to sync, and tablet power.
 - **Run self-test:** checks everything a donation needs and emails staff a test message. **No card is

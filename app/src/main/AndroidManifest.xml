@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO" android:maxSdkVersion="29"/>
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false"/>
+    <!-- Staff exit opens the tablet's normal launcher, so the app must be able to see home-screen apps. -->
+    <queries><intent><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.HOME"/></intent></queries>
     <application android:name=".KollelApplication" android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules" android:icon="@drawable/ic_kollel" android:usesCleartextTraffic="false" android:label="Kollel Giving Kiosk" android:supportsRtl="true" android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <receiver android:name=".KioskAdminReceiver" android:exported="true" android:permission="android.permission.BIND_DEVICE_ADMIN">
             <meta-data android:name="android.app.device_admin" android:resource="@xml/kiosk_device_admin"/>

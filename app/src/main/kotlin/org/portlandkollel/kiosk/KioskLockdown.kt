@@ -48,8 +48,11 @@ internal object KioskLockdown {
         runCatching {dpm.setLockTaskFeatures(admin,DevicePolicyManager.LOCK_TASK_FEATURE_NONE)}
         // Regular mode (staff exit) gives the normal home screen back until restart or Lock kiosk screen.
         if(!paused(context))runCatching {
-            val home=IntentFilter(Intent.ACTION_MAIN).apply {addCategory(Intent.CATEGORY_HOME);addCategory(Intent.CATEGORY_DEFAULT)}
-            dpm.addPersistentPreferredActivity(admin,home,ComponentName(context,MainActivity::class.java))
+            prefs(context).getString("regular_home",null)?.let {other ->
+                runCatching {dpm.clearPackagePersistentPreferredActivities(admin,other)}
+                prefs(context).edit().remove("regular_home").commit()
+            }
+            dpm.addPersistentPreferredActivity(admin,homeFilter(),ComponentName(context,MainActivity::class.java))
         }
         runCatching {dpm.setGlobalSetting(admin,Settings.Global.STAY_ON_WHILE_PLUGGED_IN,"7")}
         runCatching {dpm.setKeyguardDisabled(admin,true)} // Only succeeds when no secure screen lock is set.
@@ -60,11 +63,31 @@ internal object KioskLockdown {
         applyPolicies(activity)
         if(!paused(activity))runCatching {activity.startLockTask()}
     }
+    private fun homeFilter()=IntentFilter(Intent.ACTION_MAIN).apply {addCategory(Intent.CATEGORY_HOME);addCategory(Intent.CATEGORY_DEFAULT)}
+    /** The tablet's normal launcher (e.g. Pixel Launcher), never this app or Android's fallback home screen. */
+    fun regularLauncher(context:Context):ComponentName? {
+        val homes=context.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME),android.content.pm.PackageManager.MATCH_ALL)
+            .map {it.activityInfo}.filter {it.packageName!=context.packageName && it.packageName!="com.android.settings"}
+        val pick=homes.firstOrNull {it.packageName=="com.google.android.apps.nexuslauncher"}?:homes.firstOrNull()
+        return pick?.let {ComponentName(it.packageName,it.name)}
+    }
     /** Lets staff use the browser/Google consent screens; lock-down resumes on restart or Lock kiosk screen. */
     fun pause(activity:Activity) {
         setPaused(activity,true);runCatching {activity.stopLockTask()}
-        if(managed(activity))runCatching {dpm(activity).clearPackagePersistentPreferredActivities(admin(activity),activity.packageName)}
+        if(managed(activity))runCatching {
+            val dpm=dpm(activity);val admin=admin(activity)
+            dpm.clearPackagePersistentPreferredActivities(admin,activity.packageName)
+            // The kiosk is still the tablet's default home app; point Home at the normal launcher while paused,
+            // otherwise Staff exit and the Home button land straight back in the kiosk.
+            regularLauncher(activity)?.let {
+                dpm.addPersistentPreferredActivity(admin,homeFilter(),it)
+                prefs(activity).edit().putString("regular_home",it.packageName).commit()
+            }
+        }
     }
+    /** Set when staff leave for regular mode or tablet Settings: opening the kiosk again re-locks it. */
+    fun setRelockOnReturn(context:Context,value:Boolean){prefs(context).edit().putBoolean("relock_on_return",value).commit()}
+    fun relockOnReturn(context:Context)=prefs(context).getBoolean("relock_on_return",false)
     fun resume(activity:Activity){setPaused(activity,false);if(managed(activity))apply(activity) else runCatching {activity.startLockTask()}}
     /** After a staff sign-in returns: re-lock only when the kiosk manager is active (no pinning prompt otherwise). */
     fun resumeIfManaged(activity:Activity){if(managed(activity)){setPaused(activity,false);apply(activity)}}

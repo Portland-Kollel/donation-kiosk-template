@@ -16,7 +16,7 @@ import android.os.Build
 class KioskBootReceiver:BroadcastReceiver() {
     override fun onReceive(context:Context,intent:Intent) {
         if(intent.action!=Intent.ACTION_BOOT_COMPLETED)return
-        KioskLockdown.setPaused(context,false) // Every restart returns to full lock-down.
+        KioskLockdown.setPaused(context,false);KioskLockdown.setRelockOnReturn(context,false) // Every restart returns to full lock-down.
         if(KioskLockdown.managed(context)) {
             // Kiosk manager: re-assert the home screen and open the kiosk now (device owners may start activities from the background).
             KioskLockdown.applyPolicies(context)
