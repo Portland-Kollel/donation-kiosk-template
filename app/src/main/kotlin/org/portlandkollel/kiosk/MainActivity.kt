@@ -33,6 +33,8 @@ class GivingState:ViewModel() {
     var staffUnlocked by mutableStateOf(false);var formEpoch by mutableIntStateOf(0)
     /** Donor opted to cover the card fee; rate comes from staff settings (default Square in-person 2.6% + 15¢). */
     var coverFee by mutableStateOf(false);var feeBps by mutableIntStateOf(260);var feeFixed by mutableLongStateOf(15L)
+    /** Always-visible status on the donor screen (green dot, small note, or clear reader-down notice). */
+    var glance by mutableStateOf(KioskGlance(KioskGlance.Level.OK,"All systems working"))
     fun clearForm(){details=GivingDetails("");coverFee=false;formEpoch++}
 }
 
@@ -135,7 +137,9 @@ class MainActivity:ComponentActivity(),DefaultLifecycleObserver {
     private fun setDim(on:Boolean){dimmed=on;window.attributes=window.attributes.apply {screenBrightness=if(on)DIM_BRIGHTNESS else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE}}
     private var ticks=0
     private fun idleTick() {
-        if(state.staffUnlocked && ++ticks%5==0)refreshStaffStatus()
+        ticks++
+        if(state.staffUnlocked && ticks%5==0)refreshStaffStatus()
+        if(ticks%GLANCE_EVERY_S==1)checkGlance()
         val idle=System.currentTimeMillis()-lastTouch
         if(idle>=DIM_AFTER_MS && !dimmed && !state.busy)setDim(true)
         if(state.busy || idleHandled)return
@@ -146,7 +150,7 @@ class MainActivity:ComponentActivity(),DefaultLifecycleObserver {
             pin="";confirm="";oldPin="";newPin="";newConfirm="";error=""
         }
     }
-    private companion object {const val RESET_AFTER_MS=90_000L;const val DIM_AFTER_MS=120_000L;const val THANK_YOU_MS=15_000L;const val DIM_BRIGHTNESS=0.08f}
+    private companion object {const val RESET_AFTER_MS=90_000L;const val DIM_AFTER_MS=120_000L;const val THANK_YOU_MS=15_000L;const val DIM_BRIGHTNESS=0.08f;const val GLANCE_EVERY_S=10}
     override fun onResume() {
         super<ComponentActivity>.onResume()
         // Back from Staff exit or tablet Settings: opening the kiosk again locks it again (no PIN, no computer).
@@ -358,6 +362,33 @@ class MainActivity:ComponentActivity(),DefaultLifecycleObserver {
                 .put("reader_status_at",java.time.ZonedDateTime.now(KioskHealth.ZONE).format(java.time.format.DateTimeFormatter.ofPattern("EEE MMM d, h:mm a",java.util.Locale.US)))}
         }}}
     }
+    // ---- Always-visible status indicator and automatic reader reconnect ----
+    private val readerWatch=ReaderWatch()
+    private var glanceJob:Job?=null
+    /** Every 10 seconds: reuse the staff-menu checks to update the donor-screen indicator; reconnect a stuck reader. */
+    private fun checkGlance() {
+        if(glanceJob?.isActive==true)return
+        glanceJob=lifecycleScope.launch {
+            try {
+                if(state.authorized)runCatching {kiosk.square.refreshReaders()}
+                // Sandbox uses Square's simulated reader, so there is no real reader to watch there.
+                val step=if(!state.sandbox && kiosk.initialized())readerWatch.observe(System.currentTimeMillis(),state.authorized && state.readers.any(KioskHealth::readerReady)) else null
+                if(step?.reconnectNow==true && !state.busy && !state.locked)autoReconnect()
+                val reason=io {KioskHealth.readerReason(kiosk,state.authorized,state.readers)}
+                val notes=io {KioskHealth.glanceNotes(this@MainActivity,kiosk)}
+                state.glance=KioskGlance.of(step?.health,reason,notes)
+            } catch(e:CancellationException){throw e} catch(_:Exception){}
+        }
+    }
+    /** Quiet reconnect: never during a payment; never shows anything to donors; noted for the staff status panel. */
+    private suspend fun autoReconnect() {
+        try {
+            if(!state.authorized) {if(io {kiosk.session.hasCredentials()})withTimeoutOrNull(30_000L){authorizeSdk()}}
+            else kiosk.square.reconnect()
+            val at=java.time.ZonedDateTime.now(KioskHealth.ZONE).format(java.time.format.DateTimeFormatter.ofPattern("EEE MMM d, h:mm a",java.util.Locale.US))
+            io {kiosk.vault.update {it.put("reader_auto_reconnect_at",at)}}
+        } catch(e:CancellationException){throw e} catch(_:Exception){}
+    }
     private fun refreshStaffStatus(){staffStatus=runCatching {KioskHealth.local(this,kiosk,state.authorized,state.readers)}.getOrElse {listOf(StaffCheck("Status",StaffCheck.Level.FAIL,"Could not read status. Payment records preserved."))}}
     private fun errorCode(e:Exception)=when(e){is RemoteFailure->"HTTP_${e.status}";is KioskError->e.code;else->"NETWORK_OR_ACCOUNT_UNAVAILABLE"}
     /** No-charge check of everything a donation needs; emails the result to staff so email is tested too. */
@@ -383,6 +414,7 @@ class MainActivity:ComponentActivity(),DefaultLifecycleObserver {
                 state.readers.isEmpty() -> if(state.sandbox)warn("Card reader","No reader. In Sandbox, use the simulated reader.") else fail("Card reader","No reader found. Charge it, then Pair a reader.")
                 else -> fail("Card reader",state.readers.joinToString(", ")+". Try Reconnect reader.")
             }
+            if(KioskHealth.squareAppInstalled(this@MainActivity))warn("Square app","The separate Square app is installed. Make sure it is signed out and has forgotten the reader, or it can take the reader away from the kiosk.")
             KioskHealth.power(this@MainActivity)?.let {if(it.charging)ok("Tablet power","${it.percent}%, plugged in.") else warn("Tablet power","${it.percent}%, NOT plugged in.")}
             val pending=io {KioskHealth.pending(kiosk.ledger.records())}
             if(pending.total==0 && pending.review==0)ok("Waiting to sync","Nothing waiting.") else warn("Waiting to sync","${pending.sheetRows} Sheet row(s), ${pending.emails} email(s), ${pending.review} to check by hand.")

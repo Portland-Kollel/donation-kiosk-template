@@ -116,6 +116,9 @@ fun GivingScreen(
                     // Only Sandbox and setup modes are labeled; live donors see no status line.
                     if(state.sandbox || !state.live || tools)Text(if(state.sandbox) "SQUARE SANDBOX · No real money" else if(state.live) "LIVE · Real card payment" else "READER SETUP · Real donations disabled",
                         fontSize=14.sp,color=Red,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(horizontal=36.dp,vertical=6.dp))
+                    // Card reader down: a clear notice on every donor page, so nobody starts a gift that cannot go through.
+                    val readerDown=state.glance.level==KioskGlance.Level.READER_DOWN
+                    if(readerDown && !tools && !locked && page<3)ReaderDownBanner(state.glance.text,onStaffRequest)
                     val body=Modifier.fillMaxWidth().weight(1f).padding(horizontal=36.dp,vertical=28.dp)
                     when {
                         tools -> Column(body.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
@@ -248,6 +251,7 @@ fun GivingScreen(
                                 fontSize=19.sp,color=Muted,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().padding(top=22.dp))
                             if(state.sandbox)Text("Square’s Sandbox screen opens next. Use the simulated reader. No real money is collected.",fontSize=18.sp,color=Red,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().padding(top=8.dp))
                             Spacer(Modifier.weight(1f))
+                            if(readerDown)Box(Modifier.padding(bottom=16.dp)) {Notice("⚠️ The card reader isn’t connected right now, so this gift can’t go through yet. Please let a staff member know.",warning=true)}
                             Primary(if(busy)"Working…" else if(state.sandbox) "Give in Square Sandbox" else if(state.live) "Give $wholeTotal  ♥" else "Real donations disabled",
                                 editable&&authorized&&valid&&(state.sandbox||state.live),onClick=onPay)
                         }
@@ -267,11 +271,37 @@ fun GivingScreen(
                         }
                     }
                 }
+                // Always-visible status, bottom right, in the page margin. Tapping it opens the staff PIN (details inside).
+                StatusIndicator(state.glance,Modifier.align(Alignment.BottomEnd).padding(end=20.dp,bottom=2.dp),onStaffRequest)
             }
             }
             }
         }
     }
+}
+
+/** Green dot when all is well; a small quiet note for Sheet/email/power; a reader problem also shows the banner. */
+@Composable private fun StatusIndicator(glance:KioskGlance,modifier:Modifier,onTap:()->Unit) {
+    val ok=glance.level==KioskGlance.Level.OK
+    val color=when(glance.level) {KioskGlance.Level.OK->Color(0xFF3E9B63);KioskGlance.Level.NOTE->Color(0xFFB7791F);KioskGlance.Level.READER_DOWN->Red}
+    Row(modifier.height(26.dp).clickable(onClick=onTap).padding(horizontal=6.dp),verticalAlignment=Alignment.CenterVertically,
+        horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+        if(!ok)Text(glance.text,fontSize=14.sp,color=Muted)
+        Box(Modifier.size(if(ok)10.dp else 12.dp).background(color.copy(alpha=if(ok)0.7f else 1f),CircleShape))
+    }
+}
+
+@Composable private fun ReaderDownBanner(reason:String,onTap:()->Unit) {
+    Surface(Modifier.fillMaxWidth().clickable(onClick=onTap),color=Color(0xFFFDF0EC)) {
+        Row(Modifier.padding(horizontal=36.dp,vertical=16.dp),verticalAlignment=Alignment.CenterVertically) {
+            Surface(shape=CircleShape,color=Red) {Box(Modifier.size(40.dp),contentAlignment=Alignment.Center) {Text("!",fontSize=24.sp,fontWeight=FontWeight.Bold,color=Color.White)}}
+            Column(Modifier.padding(start=18.dp)) {
+                Text(reason,fontSize=22.sp,fontWeight=FontWeight.SemiBold,color=Color(0xFF8A2E1C))
+                Text("Card gifts can’t go through right now. Please let a staff member know.",fontSize=17.sp,color=Color(0xFF8A2E1C),lineHeight=24.sp)
+            }
+        }
+    }
+    HorizontalDivider(color=Color(0xFFF2C7BB),thickness=2.dp)
 }
 
 /** Donor-facing wording for in-progress states; staff codes stay in the staff menu. */
