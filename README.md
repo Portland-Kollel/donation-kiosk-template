@@ -54,7 +54,7 @@ What it does:
 | Item | Notes |
 | --- | --- |
 | Android tablet | We use a Google Pixel Tablet standing upright. Any modern Android tablet from a reputable brand (Google, Samsung, Lenovo) running **Android 13 or newer** should work. Avoid cheap no-name tablets and **Amazon Fire** tablets (no Google services, so emails and the Sheet won't work). |
-| Square Reader | **Square Reader (2nd generation), contactless + chip.** About $59 from Square or Amazon (check it's sold by Square or Amazon, not a third party). |
+| Square Reader | **Square Reader (2nd generation), contactless + chip.** About $59 from Square or Amazon (check it's sold by Square or Amazon, not a third party). The older 1st-generation reader also works, but it switches off after about 8 hours without use, even when plugged in (see [SETUP.md](SETUP.md#if-the-card-reader-goes-to-sleep)). |
 | Stand or wall mount | A **secure, locking tablet stand** or wall mount, so the tablet can't walk away. |
 | Cables and power | The kiosk stays plugged in all day, so place it **near an outlet**. Get long USB-C cables and chargers for the tablet and the reader. |
 | Square account | The same one you already use |

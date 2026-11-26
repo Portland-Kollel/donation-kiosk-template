@@ -230,6 +230,26 @@ Funds).
   off in **Kiosk settings** if you don't want it.
 - **Never clear the app's data.** Unsynced gift records live on the tablet.
 
+### If the card reader goes to sleep
+
+Square readers save power when no card has been used for a while, **even when plugged in**:
+
+| Reader | How to tell | Stays connected without use |
+|---|---|---|
+| **1st generation** | Model SPC1-01 on the back; characters 5–8 of the serial number show the model code, such as `S070` or `S146`; **micro-USB** charging plug | About **8 hours** |
+| **2nd generation** | **USB-C** charging plug | Up to **30 days** |
+
+What we found with a 1st-generation reader on our kiosk:
+
+- **While it is still connected**, pressing its button now and then keeps it awake (each press restarts the
+  timer). A press each morning is enough on most days.
+- **Once it has gone to sleep**, pressing the button alone does **not** reconnect it. The tablet only
+  listens for the reader while one of Square's own screens is open. Hold the logo → PIN → **Pair a
+  reader**, then press the reader's button. (Starting a donation and pressing the button on Square's black
+  payment screen also works.)
+- The kiosk shows a red **Card reader not found** notice when this happens, so staff notice right away.
+- For an unattended kiosk we recommend the **2nd-generation reader**: it stays connected for weeks.
+
 ---
 
 ## Updating
