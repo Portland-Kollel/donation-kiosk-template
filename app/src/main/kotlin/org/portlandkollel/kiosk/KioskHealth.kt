@@ -35,6 +35,36 @@ internal object KioskHealth {
     /** Normal for a minute after the app starts or the reader wakes up; not a fault on its own. */
     fun readerBusy(status:String)=status.substringAfter("Reader:").trim().let {it.startsWith("Connecting",true)||it.startsWith("Updating",true)}
 
+    /** Package of the separate Square app (Square Point of Sale). It can hold on to the reader (seen Nov 22). */
+    const val SQUARE_POS_PACKAGE="com.squareup"
+    fun squareAppInstalled(context:Context)=runCatching {context.packageManager.getPackageInfo(SQUARE_POS_PACKAGE,0);true}.getOrDefault(false)
+
+    /** Plain reason card gifts cannot go through, shown on the main screen when the reader is down. */
+    fun readerReason(app:KollelApplication,authorized:Boolean,readers:List<String>):String {
+        val root=app.vault.read()
+        return when {
+            !app.session.hasCredentials() || root.optString("square_sync_error").isNotEmpty() -> "Square is signed out"
+            !authorized -> "Square is not connected"
+            readers.isEmpty() -> "Card reader not found"
+            else -> "Card reader not connected"
+        }
+    }
+
+    /** Smaller problems for the main-screen indicator, in plain words, most important first. Donors can ignore them. */
+    fun glanceNotes(context:Context,app:KollelApplication):List<String> {
+        val root=app.vault.read();val notes=mutableListOf<String>()
+        val googleError=root.optString("google_sync_error")
+        when {
+            !root.has("google_account") || !root.optBoolean("google_enabled") -> notes+="Sheet & email: Google not connected"
+            googleError=="NETWORK_OR_ACCOUNT_UNAVAILABLE" -> notes+="Sheet & email: can't reach Google (internet?)"
+            googleError.startsWith("HTTP_401") || googleError.startsWith("HTTP_403") -> notes+="Sheet & email: Google sign-in needed"
+            googleError.isNotEmpty() -> notes+="Sheet & email not sending ($googleError)"
+        }
+        if(pending(app.ledger.records()).review>0)notes+="Some emails need a manual check"
+        power(context)?.let {if(!it.charging)notes+="Tablet not plugged in (${it.percent}%)"}
+        return notes
+    }
+
     data class Pending(val sheetRows:Int,val emails:Int,val review:Int) {val total get()=sheetRows+emails}
     fun pending(records:List<JSONObject>):Pending {
         // Same rule as the Google sync: only records that have a Sheet row are ever synced. Older records without
@@ -69,7 +99,8 @@ internal object KioskHealth {
             readers.isEmpty() -> StaffCheck("Card reader",if(env=="sandbox")StaffCheck.Level.WARN else StaffCheck.Level.FAIL,"No reader found. Charge it, then Pair a reader.")
             ready -> StaffCheck("Card reader",StaffCheck.Level.OK,"Ready.")
             readers.all(::readerBusy) -> StaffCheck("Card reader",StaffCheck.Level.WARN,readers.joinToString(", ")+". Usually ready within a minute.")
-            else -> StaffCheck("Card reader",StaffCheck.Level.FAIL,readers.joinToString(", ")+". Try Reconnect reader.")
+            else -> StaffCheck("Card reader",StaffCheck.Level.FAIL,readers.joinToString(", ")+". Try Reconnect reader."+
+                root.optString("reader_auto_reconnect_at").let {if(it.isEmpty())"" else " (Last automatic reconnect: $it.)"})
         }
         val googleError=root.optString("google_sync_error")
         list+=when {

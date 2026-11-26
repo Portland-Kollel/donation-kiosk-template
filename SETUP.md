@@ -185,6 +185,13 @@ Tap **Kiosk settings** and enter:
    to the kiosk.
 3. **Reader permissions** → **Pair a reader** → hold the reader's button until its
    lights flash to pair your Square Reader (2nd generation).
+
+   > **Used the regular Square app before?** If this tablet or this reader was ever used with the regular
+   > Square app (Square Point of Sale), first open that app and **forget (unpair) the reader** there, then
+   > sign out of it (or uninstall it, or clear its storage). Otherwise the Square app can keep grabbing the
+   > reader, and the kiosk shows the reader as failing until the tablet is restarted. The self-test reminds
+   > you if the Square app is still installed.
+
 4. Make sure **Organization Google account** is set in **Kiosk settings**, then tap **Connect Google**.
    Tick **both** permission boxes.
 5. Tap **Run self-test** and check that every line has a ✓ and the test email arrives. Then tap
@@ -210,6 +217,10 @@ Funds).
 - **Staff menu:** hold the logo 3 seconds → PIN.
 - **Staff exit:** opens the tablet's normal home screen so you can use other apps. To lock it again, just open
   the kiosk app again, or restart the tablet. No computer needed.
+- **Status dot:** bottom right of the donor screen. Small green dot = all good. A small note = a Sheet,
+  email or power problem (donations still work). A clear red notice under the logo = the card reader is
+  down and donors can't give: tap it, enter the PIN and check the Status panel. The app reconnects a
+  stuck reader by itself after 3 minutes before showing the notice.
 - **Status panel:** the top of the staff menu shows a ✓, ! or ✕ for the kiosk lock, Square, the card
   reader, Google, anything waiting to sync, and tablet power.
 - **Run self-test:** checks everything a donation needs and emails staff a test message. **No card is
@@ -218,6 +229,26 @@ Funds).
   report (gifts that week, anything that needs attention). If it stops arriving, check the kiosk. Turn it
   off in **Kiosk settings** if you don't want it.
 - **Never clear the app's data.** Unsynced gift records live on the tablet.
+
+### If the card reader goes to sleep
+
+Square readers save power when no card has been used for a while, **even when plugged in**:
+
+| Reader | How to tell | Stays connected without use |
+|---|---|---|
+| **1st generation** | Model SPC1-01 on the back; characters 5–8 of the serial number show the model code, such as `S070` or `S146`; **micro-USB** charging plug | About **8 hours** |
+| **2nd generation** | **USB-C** charging plug | Up to **30 days** |
+
+What we found with a 1st-generation reader on our kiosk:
+
+- **While it is still connected**, pressing its button now and then keeps it awake (each press restarts the
+  timer). A press each morning is enough on most days.
+- **Once it has gone to sleep**, pressing the button alone does **not** reconnect it. The tablet only
+  listens for the reader while one of Square's own screens is open. Hold the logo → PIN → **Pair a
+  reader**, then press the reader's button. (Starting a donation and pressing the button on Square's black
+  payment screen also works.)
+- The kiosk shows a red **Card reader not found** notice when this happens, so staff notice right away.
+- For an unattended kiosk we recommend the **2nd-generation reader**: it stays connected for weeks.
 
 ---
 
@@ -237,3 +268,8 @@ adb install -r your-new-file.apk
 ```
 
 Because it's signed with the same key, it installs over the old version and keeps all records.
+
+**Updating without a computer:** upload the new `.apk` to the Google Drive of the account signed in on the
+tablet. Then staff menu → **Open tablet Settings** → Apps → Drive → Open → tap the `.apk` → Install
+(allow Drive to install apps; if Play Protect asks, choose "Install anyway"). Tap **Open** afterwards: the
+kiosk locks again. **Never clear the kiosk app's data.**

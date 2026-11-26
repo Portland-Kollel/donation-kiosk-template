@@ -69,14 +69,16 @@ signing key on my computer -> GitHub Secrets -> build the live app -> free Cloud
 Square Developer app (Production redirect URL, Android signature, Application ID) -> Google Cloud
 project (Drive, Sheets and Gmail APIs; drive.file and gmail.send only) -> prepare the tablet ->
 install over USB -> kiosk lock-down command (with my applicationId) -> staff menu settings ->
-connect Square, the reader and Google.
+connect Square, the reader and Google. Before pairing the reader: if this tablet or reader was ever used
+with the regular Square app (Square Point of Sale), have me forget the reader in that app and sign out
+(or uninstall it / clear its storage), or it can keep holding the reader.
 
 STEP 6 - TEST. First a test gift in Sandbox. Then, when I say so, one real $1 gift with my own card:
 check the thank-you email, the staff notice and the Google Sheet row, then refund it in the Square
 Dashboard and delete the test rows.
 
 STEP 7 - HAND-OFF NOTES. Write a short document in my repository listing our accounts (not
-passwords), where each password is kept, our IDs and settings, how to install an update, and a monthly
+passwords), where each password is kept, our IDs and settings, how to install an update (with or without a computer), and a monthly
 check-list.
 
 Start with Step 1 now.

@@ -39,6 +39,9 @@ What it does:
   It restarts straight into the kiosk.
 - **Hidden staff menu**: press and hold the logo for 3 seconds, then enter a PIN.
 - Resets after 90 seconds of no activity and dims the screen when idle.
+- **Status at a glance**: a small green dot in the corner of the donor screen means everything works.
+  A quiet note appears for Sheet or email problems, and a clear notice if the card reader is down, so
+  staff can tell at a glance without opening the staff menu. A stuck reader is reconnected automatically.
 - **Self-test and weekly status email**: one tap in the staff menu checks Square, the reader, Google
   and the lock without charging a card, and every Monday staff get a short "kiosk is OK" email.
 - Each gift is saved, encrypted on the tablet, before the card is charged. If anything is interrupted,
@@ -51,7 +54,7 @@ What it does:
 | Item | Notes |
 | --- | --- |
 | Android tablet | We use a Google Pixel Tablet standing upright. Any modern Android tablet from a reputable brand (Google, Samsung, Lenovo) running **Android 13 or newer** should work. Avoid cheap no-name tablets and **Amazon Fire** tablets (no Google services, so emails and the Sheet won't work). |
-| Square Reader | **Square Reader (2nd generation), contactless + chip.** About $59 from Square or Amazon (check it's sold by Square or Amazon, not a third party). |
+| Square Reader | **Square Reader (2nd generation), contactless + chip.** About $59 from Square or Amazon (check it's sold by Square or Amazon, not a third party). The older 1st-generation reader also works, but it switches off after about 8 hours without use, even when plugged in (see [SETUP.md](SETUP.md#if-the-card-reader-goes-to-sleep)). |
 | Stand or wall mount | A **secure, locking tablet stand** or wall mount, so the tablet can't walk away. |
 | Cables and power | The kiosk stays plugged in all day, so place it **near an outlet**. Get long USB-C cables and chargers for the tablet and the reader. |
 | Square account | The same one you already use |
